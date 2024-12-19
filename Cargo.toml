@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+dotenv = "0.15"
 serenity = "0.12"
 strum = { version = "0.26", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }

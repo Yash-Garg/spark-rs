@@ -57,7 +57,9 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-    let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    dotenv::dotenv().expect("Failed to load .env file");
+
+    let token = env::var("BOT_TOKEN").expect("Expected a token in the environment");
 
     let mut client = Client::builder(token, GatewayIntents::empty())
         .event_handler(Handler)
