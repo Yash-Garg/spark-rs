@@ -19,7 +19,9 @@ impl EventHandler for Handler {
             println!("Received command interaction: {command:#?}");
 
             let content = match command.data.name.as_str() {
+                "help" => Some(commands::help::run()),
                 "spark" => Some(commands::spark::run(&command.data.options())),
+                "vote" => Some(commands::vote::run()),
                 _ => Some("not implemented :(".to_string()),
             };
 
@@ -33,7 +35,7 @@ impl EventHandler for Handler {
 
                 let data = CreateInteractionResponseMessage::new()
                     .content(content)
-                    .ephemeral(true);
+                    .ephemeral(command.data.name == "spark");
 
                 let builder = CreateInteractionResponse::Message(data);
 
@@ -55,15 +57,22 @@ impl EventHandler for Handler {
         );
 
         let commands = guild_id
-            .set_commands(&ctx.http, vec![commands::spark::register()])
+            .set_commands(
+                &ctx.http,
+                vec![commands::spark::register(), commands::vote::register()],
+            )
             .await;
 
-        println!("I now have the following guild slash commands: {commands:#?}");
+        if let Err(why) = commands {
+            println!("Cannot register commands: {why}");
+        }
 
         let guild_command =
             Command::create_global_command(&ctx.http, commands::help::register()).await;
 
-        println!("I created the following global slash command: {guild_command:#?}");
+        if let Err(why) = guild_command {
+            println!("Cannot register guild command: {why}");
+        }
     }
 }
 
