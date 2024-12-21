@@ -10,12 +10,17 @@ pub fn run(options: &[ResolvedOption]) -> String {
                 ..
             }),
             Some(ResolvedOption {
-                value: ResolvedValue::String(compliment),
+                value: ResolvedValue::String(_compliment),
                 ..
             }),
         ) => format!(
-            "Someone sees a spark in you, <@{}>! They think you're {}",
-            user.id, compliment
+            "You've sparked {}!
+Your streak is now x{} 🔥
+Your daily spark is done, you can spark again tomorrow
+Vote to spark again by `/vote`
+",
+            user.display_name(),
+            1 // TODO
         ),
         _ => "Please provide a valid user and compliment".to_string(),
     }

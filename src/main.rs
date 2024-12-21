@@ -2,6 +2,7 @@ mod commands;
 
 use std::env;
 
+use serenity::all::{CreateEmbed, CreateEmbedFooter};
 use serenity::async_trait;
 use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::application::{Command, Interaction};
@@ -23,8 +24,19 @@ impl EventHandler for Handler {
             };
 
             if let Some(content) = content {
-                let data = CreateInteractionResponseMessage::new().content(content);
+                let footer = CreateEmbedFooter::new("Sent by Spark");
+                let embed = CreateEmbed::new()
+                    .title("Spark")
+                    .description(&content)
+                    .field("User", command.member.clone().unwrap().display_name(), true)
+                    .footer(footer);
+
+                let data = CreateInteractionResponseMessage::new()
+                    .content(content)
+                    .ephemeral(true);
+
                 let builder = CreateInteractionResponse::Message(data);
+
                 if let Err(why) = command.create_response(&ctx.http, builder).await {
                     println!("Cannot respond to slash command: {why}");
                 }
