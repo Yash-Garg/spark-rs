@@ -1,8 +1,12 @@
+#![allow(dead_code)]
+
 mod commands;
+mod constants;
 
 use std::env;
 
-use serenity::all::{CreateEmbed, CreateEmbedFooter};
+use constants::{BOT_KEY, DB_NAME, GUILD_KEY};
+use serenity::all::{CreateEmbed, CreateEmbedFooter, Message};
 use serenity::async_trait;
 use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::application::{Command, Interaction};
@@ -10,10 +14,13 @@ use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
 
-struct Handler;
+struct Bot {
+    token: String,
+    database: sqlx::SqlitePool,
+}
 
 #[async_trait]
-impl EventHandler for Handler {
+impl EventHandler for Bot {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
             println!("Received command interaction: {command:#?}");
@@ -46,11 +53,15 @@ impl EventHandler for Handler {
         }
     }
 
+    async fn message(&self, ctx: Context, msg: Message) {
+        println!("Received Message: {}", msg.content);
+    }
+
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
         let guild_id = GuildId::new(
-            env::var("GUILD_ID")
+            env::var(GUILD_KEY)
                 .expect("Expected GUILD_ID in environment")
                 .parse()
                 .expect("GUILD_ID must be an integer"),
@@ -80,10 +91,31 @@ impl EventHandler for Handler {
 async fn main() {
     dotenv::dotenv().expect("Failed to load .env file");
 
-    let token = env::var("BOT_TOKEN").expect("Expected a token in the environment");
+    let token = env::var(BOT_KEY).expect("Expected a token in the environment");
 
-    let mut client = Client::builder(token, GatewayIntents::empty())
-        .event_handler(Handler)
+    let database = sqlx::sqlite::SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(
+            sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(DB_NAME)
+                .create_if_missing(true),
+        )
+        .await
+        .expect("Couldn't connect to database");
+
+    // sqlx::migrate!("./migrations")
+    //     .run(&database)
+    //     .await
+    //     .expect("Couldn't run database migrations");
+
+    let bot = Bot { token, database };
+
+    let intents = GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::MESSAGE_CONTENT;
+
+    let mut client = Client::builder(&bot.token, intents)
+        .event_handler(bot)
         .await
         .expect("Error creating client");
 
