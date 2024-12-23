@@ -6,7 +6,10 @@ mod constants;
 use std::env;
 
 use constants::{BOT_KEY, DB_NAME, GUILD_KEY};
-use serenity::all::{CreateEmbed, CreateEmbedFooter, Message};
+use serenity::all::{
+    ActivityData, CommandId, CreateEmbed, CreateEmbedFooter, CreateMessage, Message,
+    MessageInteractionMetadata, ReactionType,
+};
 use serenity::async_trait;
 use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::application::{Command, Interaction};
@@ -23,13 +26,14 @@ struct Bot {
 impl EventHandler for Bot {
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
-            println!("Received command interaction: {command:#?}");
+            // println!("Received command interaction: {command:#?}");
 
             let content = match command.data.name.as_str() {
+                "activate" => Some(commands::activate::run()),
                 "help" => Some(commands::help::run()),
                 "spark" => Some(commands::spark::run(&command.data.options())),
                 "vote" => Some(commands::vote::run()),
-                _ => Some("not implemented :(".to_string()),
+                _ => Some("sussy baka, it's not implemented :(".to_string()),
             };
 
             if let Some(content) = content {
@@ -54,11 +58,38 @@ impl EventHandler for Bot {
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
-        println!("Received Message: {}", msg.content);
+        println!("Received message: {:#?}", msg);
+
+        match msg.interaction_metadata {
+            Some(interaction) => match *interaction {
+                MessageInteractionMetadata::Command(meta) => {
+                    let dm = meta
+                        .user
+                        .dm(
+                            &ctx.http,
+                            CreateMessage::new().content(
+                                "You've been sparked! Check your DMs for more information.",
+                            ),
+                        )
+                        .await;
+
+                    if let Err(why) = dm {
+                        println!("Cannot send DM: {why}");
+                    }
+                }
+                _ => todo!(),
+            },
+            None => { /* no-op */ }
+        }
     }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
+
+        ctx.set_presence(
+            Some(ActivityData::custom("`/spark` to get started")),
+            serenity::all::OnlineStatus::Idle,
+        );
 
         let guild_id = GuildId::new(
             env::var(GUILD_KEY)
