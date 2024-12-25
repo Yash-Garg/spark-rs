@@ -5,16 +5,14 @@ mod constants;
 
 use std::env;
 
-use constants::{BOT_KEY, DB_NAME, GUILD_KEY};
+use constants::{BOT_KEY, DB_NAME};
 use serenity::all::{
-    ActivityData, CommandId, CreateEmbed, CreateEmbedFooter, CreateMessage, Message,
-    MessageInteractionMetadata, ReactionType,
+    ActivityData, CreateEmbed, CreateMessage, Message, MessageInteractionMetadata,
 };
 use serenity::async_trait;
 use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::application::{Command, Interaction};
 use serenity::model::gateway::Ready;
-use serenity::model::id::GuildId;
 use serenity::prelude::*;
 
 struct Bot {
@@ -37,13 +35,6 @@ impl EventHandler for Bot {
             };
 
             if let Some(content) = content {
-                let footer = CreateEmbedFooter::new("Sent by Spark");
-                let embed = CreateEmbed::new()
-                    .title("Spark")
-                    .description(&content)
-                    .field("User", command.member.clone().unwrap().display_name(), true)
-                    .footer(footer);
-
                 let data = CreateInteractionResponseMessage::new()
                     .content(content)
                     .ephemeral(command.data.name == "spark");
@@ -61,24 +52,32 @@ impl EventHandler for Bot {
         println!("Received message: {:#?}", msg);
 
         match msg.interaction_metadata {
-            Some(interaction) => match *interaction {
-                MessageInteractionMetadata::Command(meta) => {
-                    let dm = meta
-                        .user
-                        .dm(
-                            &ctx.http,
-                            CreateMessage::new().content(
-                                "You've been sparked! Check your DMs for more information.",
-                            ),
-                        )
-                        .await;
+            Some(interaction) => {
+                match *interaction {
+                    MessageInteractionMetadata::Command(meta) => {
+                        let sv_name = msg.guild_id.unwrap().name(&ctx.cache).unwrap();
 
-                    if let Err(why) = dm {
-                        println!("Cannot send DM: {why}");
+                        let desc = format!(
+                            "Someone from {} sparked you {}. Subscribe to [Spark Premium](https://google.com) to reveal!",
+                            sv_name, "compliment"
+                        );
+
+                        let embed = CreateEmbed::new()
+                            .title("Spark #0001")
+                            .description(desc)
+                            .color(0x00FF00);
+
+                        let message = CreateMessage::new().embed(embed);
+                        meta.user.dm(&ctx.http, message).await.unwrap();
+
+                        // msg.channel_id
+                        //     .send_message(&ctx.http, message)
+                        //     .await
+                        //     .unwrap();
                     }
+                    _ => todo!(),
                 }
-                _ => todo!(),
-            },
+            }
             None => { /* no-op */ }
         }
     }
@@ -91,29 +90,19 @@ impl EventHandler for Bot {
             serenity::all::OnlineStatus::Idle,
         );
 
-        let guild_id = GuildId::new(
-            env::var(GUILD_KEY)
-                .expect("Expected GUILD_ID in environment")
-                .parse()
-                .expect("GUILD_ID must be an integer"),
-        );
+        let glob_cmds = Command::set_global_commands(
+            &ctx.http,
+            vec![
+                commands::activate::register(),
+                commands::help::register(),
+                commands::spark::register(),
+                commands::vote::register(),
+            ],
+        )
+        .await;
 
-        let commands = guild_id
-            .set_commands(
-                &ctx.http,
-                vec![commands::spark::register(), commands::vote::register()],
-            )
-            .await;
-
-        if let Err(why) = commands {
-            println!("Cannot register commands: {why}");
-        }
-
-        let guild_command =
-            Command::create_global_command(&ctx.http, commands::help::register()).await;
-
-        if let Err(why) = guild_command {
-            println!("Cannot register guild command: {why}");
+        if let Err(why) = glob_cmds {
+            println!("Cannot register global commands: {why}");
         }
     }
 }
@@ -133,11 +122,6 @@ async fn main() {
         )
         .await
         .expect("Couldn't connect to database");
-
-    // sqlx::migrate!("./migrations")
-    //     .run(&database)
-    //     .await
-    //     .expect("Couldn't run database migrations");
 
     let bot = Bot { token, database };
 
