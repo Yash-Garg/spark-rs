@@ -40,6 +40,30 @@ pub enum Compliments {
     Report,
 }
 
+// TODO
+impl Compliments {
+    fn message(&self) -> &str {
+        return match self {
+            Compliments::Crush => "",
+            Compliments::GreenFlag => "",
+            Compliments::RelationshipMaterial => "",
+            Compliments::Cutiee => "",
+            Compliments::Funny => "",
+            Compliments::Smart => "",
+            Compliments::Kind => "",
+            Compliments::Respect => "",
+            Compliments::Miss => "",
+            Compliments::Date => "",
+            Compliments::PotentialHomie => "",
+            Compliments::WRookie => "",
+            Compliments::Cancel => "",
+            Compliments::Yeet => "",
+            Compliments::Mute => "",
+            Compliments::Report => "",
+        };
+    }
+}
+
 #[poise::command(
     description_localized(
         "en-US",
@@ -113,7 +137,10 @@ Vote to spark again by `/vote`
         .thumbnail(user.face());
 
     let result = ctx
-        .send(poise::CreateReply::default().ephemeral(false).embed(embed))
+        .guild_channel()
+        .await
+        .unwrap()
+        .send_message(&ctx.http(), serenity::CreateMessage::new().embed(embed))
         .await;
 
     if let Err(e) = result {
