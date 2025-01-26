@@ -1,7 +1,7 @@
 use crate::{Context, Error};
 
-#[poise::command(slash_command, prefix_command)]
+#[poise::command(owners_only, prefix_command, slash_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say("Pong!").await?;
+    ctx.reply("Pong!").await?;
     Ok(())
 }
