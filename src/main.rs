@@ -3,18 +3,18 @@ use std::env;
 mod commands;
 mod constants;
 
+use anyhow::Ok;
 use commands::{ping::ping, spark::spark, vote::vote};
-use constants::{BOT_KEY, DB_NAME};
+use constants::{BOT_KEY, DB_KEY};
 use poise::serenity_prelude as serenity;
 
 pub struct Bot {
-    db: sqlx::SqlitePool,
+    db: sqlx::PgPool,
 }
 
-type Error = Box<dyn std::error::Error + Send + Sync>;
-type Context<'a> = poise::Context<'a, Bot, Error>;
+type Context<'a> = poise::Context<'a, Bot, anyhow::Error>;
 
-async fn on_error(error: poise::FrameworkError<'_, Bot, Error>) {
+async fn on_error(error: poise::FrameworkError<'_, Bot, anyhow::Error>) {
     match error {
         poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
         poise::FrameworkError::Command { error, ctx, .. } => {
@@ -29,17 +29,13 @@ async fn on_error(error: poise::FrameworkError<'_, Bot, Error>) {
 }
 
 #[tokio::main]
-async fn main() {
-    dotenv::dotenv().expect("Failed to load .env file");
-    let token = env::var(BOT_KEY).expect("Expected a token in the environment");
+async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().expect("Couldn't load .env file");
 
-    let db = sqlx::sqlite::SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(
-            sqlx::sqlite::SqliteConnectOptions::new()
-                .filename(DB_NAME)
-                .create_if_missing(true),
-        )
+    let token = env::var(BOT_KEY).expect("Expected a token in the environment");
+    let db_url = env::var(DB_KEY).expect("Expected a database URL in the environment");
+
+    let db = sqlx::PgPool::connect(&db_url)
         .await
         .expect("Couldn't connect to database");
 
@@ -76,4 +72,6 @@ async fn main() {
         .await;
 
     client.unwrap().start().await.unwrap();
+
+    Ok(())
 }

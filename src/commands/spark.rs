@@ -1,4 +1,4 @@
-use crate::{Context, Error};
+use crate::Context;
 use poise::{
     serenity_prelude::{self as serenity, CreateEmbedFooter},
     ChoiceParameter,
@@ -70,7 +70,7 @@ impl Compliments {
         "Do you see a spark in someone? Go ahead, give them a compliment!"
     ),
     // 1 day cooldown
-    member_cooldown = 86400,
+    // member_cooldown = 86400,
     ephemeral,
     guild_only,
     prefix_command,
@@ -80,22 +80,23 @@ pub async fn spark(
     ctx: Context<'_>,
     #[description = "The user to give a compliment to"] user: serenity::User,
     #[description = "The compliment to give"] compliment: Compliments,
-) -> Result<(), Error> {
+) -> Result<(), anyhow::Error> {
     if user.id == ctx.author().id {
         ctx.say("sussy baka, you can't spark yourself :3").await?;
-        return Err("User tried to spark themselves".into());
+        return Err(anyhow::anyhow!("User tried to spark themselves"));
     }
 
+    let uid = user.id.get() as i32;
     let db = &ctx.data().db;
 
     sqlx::query("INSERT INTO sparks (user_id, compliment) VALUES ($1, $2)")
-        .bind(user.id.get() as i64)
+        .bind(uid)
         .bind(compliment as i32)
         .execute(db)
         .await?;
 
     let sparks_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sparks WHERE user_id = $1")
-        .bind(user.id.get() as i64)
+        .bind(uid)
         .fetch_one(db)
         .await?;
 
@@ -116,7 +117,8 @@ Vote to spark again by `/vote`
 
     // TODO: Figure out guild name
     let embed_msg = format!(
-        "Someone from {} sparked you {}. Subscribe to [Spark Premium](https://google.com) to reveal!",
+        "<@{}> Someone from {} sparked you {}. Subscribe to [Spark Premium](https://google.com) to reveal!",
+        user.id.get(),
         "GUILD_NAME",
         compliment.name()
     );
@@ -144,7 +146,7 @@ Vote to spark again by `/vote`
         .await;
 
     if let Err(e) = result {
-        println!("Error sending message: {}", e);
+        return Err(anyhow::anyhow!("Failed to send spark message: {:?}", e));
     }
 
     Ok(())

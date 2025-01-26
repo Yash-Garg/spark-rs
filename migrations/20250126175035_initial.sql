@@ -1,5 +1,5 @@
-CREATE TABLE sparks (
-    id INTEGER PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    compliment INTEGER NOT NULL
+CREATE TABLE IF NOT EXISTS sparks (
+    id SERIAL PRIMARY KEY,
+    user_id BIGSERIAL NOT NULL,
+    compliment BIGSERIAL NOT NULL
 );
