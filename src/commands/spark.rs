@@ -4,7 +4,7 @@ use poise::{
     ChoiceParameter,
 };
 
-#[derive(Debug, poise::ChoiceParameter)]
+#[derive(Debug, Clone, Copy, poise::ChoiceParameter)]
 pub enum Compliments {
     #[name = "Crush 💖"]
     Crush,
@@ -46,7 +46,7 @@ pub enum Compliments {
         "Do you see a spark in someone? Go ahead, give them a compliment!"
     ),
     // 1 day cooldown
-    // member_cooldown = 86400,
+    member_cooldown = 86400,
     ephemeral,
     guild_only,
     prefix_command,
@@ -63,6 +63,18 @@ pub async fn spark(
     }
 
     let db = &ctx.data().db;
+
+    sqlx::query("INSERT INTO sparks (user_id, compliment) VALUES ($1, $2)")
+        .bind(user.id.get() as i64)
+        .bind(compliment as i32)
+        .execute(db)
+        .await?;
+
+    let sparks_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sparks WHERE user_id = $1")
+        .bind(user.id.get() as i64)
+        .fetch_one(db)
+        .await?;
+
     // TODO: Add spark to db
 
     let message = format!(
@@ -72,7 +84,7 @@ Your daily spark is done, you can spark again tomorrow
 Vote to spark again by `/vote`
 ",
         user.display_name(),
-        1,
+        sparks_count,
     );
 
     let reply = poise::CreateReply::default().content(message);
@@ -91,8 +103,8 @@ Vote to spark again by `/vote`
     let embed = serenity::CreateEmbed::new()
         .author(embed_author)
         .title(format!(
-            "🚨 Spark #{} Someone sparked {} 🚨",
-            0001,
+            "🚨 Spark #000{} Someone sparked {} 🚨",
+            sparks_count,
             user.display_name()
         ))
         .description(&embed_msg)

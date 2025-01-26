@@ -43,6 +43,11 @@ async fn main() {
         .await
         .expect("Couldn't connect to database");
 
+    sqlx::migrate!("./migrations")
+        .run(&db)
+        .await
+        .expect("Couldn't run database migrations");
+
     let intents = serenity::GatewayIntents::privileged();
     let options = poise::FrameworkOptions {
         commands: vec![ping(), spark(), vote()],

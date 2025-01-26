@@ -67,6 +67,7 @@
           packages = with pkgs; [
             just
             rustStable
+            sqlx-cli
           ];
         };
       }
