@@ -3,19 +3,18 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
+  inputs.crane.url = "github:ipetkov/crane";
+
   inputs.devshell.url = "github:numtide/devshell";
   inputs.devshell.inputs.nixpkgs.follows = "nixpkgs";
-
-  inputs.flake-utils.url = "github:numtide/flake-utils";
-
-  inputs.flake-compat.url = "github:nix-community/flake-compat";
-  inputs.flake-compat.flake = false;
 
   inputs.fenix.url = "github:nix-community/fenix";
   inputs.fenix.inputs.nixpkgs.follows = "nixpkgs";
 
-  inputs.crane.url = "github:ipetkov/crane";
-  inputs.crane.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.flake-compat.url = "github:nix-community/flake-compat";
+  inputs.flake-compat.flake = false;
+
+  inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs =
     {
@@ -36,12 +35,12 @@
 
         rustStable = (import fenix { inherit pkgs; }).fromToolchainFile {
           file = ./toolchain.toml;
-          sha256 = "sha256-s1RPtyvDGJaX/BisLT+ifVfuhDT1nZkZ1NcK8sbwELM=";
+          sha256 = "sha256-lMLAupxng4Fd9F1oDw8gx+qA0RuF7ou7xhNU8wgs0PU=";
         };
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustStable;
 
-        tubeman = craneLib.buildPackage {
+        spark-rs = craneLib.buildPackage {
           src = craneLib.cleanCargoSource (craneLib.path ./.);
           buildInputs = [ ];
           nativeBuildInputs = [ ];
@@ -50,12 +49,12 @@
       in
       {
         checks = {
-          inherit tubeman;
+          inherit spark-rs;
         };
 
-        packages.default = tubeman;
+        packages.default = spark-rs;
 
-        apps.default = flake-utils.lib.mkApp { drv = tubeman; };
+        apps.default = flake-utils.lib.mkApp { drv = spark-rs; };
 
         devShells.default = pkgs.devshell.mkShell {
           env = [

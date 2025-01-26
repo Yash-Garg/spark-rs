@@ -1,108 +1,29 @@
-#![allow(dead_code)]
+use std::env;
 
 mod commands;
 mod constants;
 
-use std::env;
-
+use commands::{ping::ping, spark::spark, vote::vote};
 use constants::{BOT_KEY, DB_NAME};
-use serenity::all::{
-    ActivityData, CreateEmbed, CreateMessage, Message, MessageInteractionMetadata,
-};
-use serenity::async_trait;
-use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
-use serenity::model::application::{Command, Interaction};
-use serenity::model::gateway::Ready;
-use serenity::prelude::*;
+use poise::serenity_prelude as serenity;
 
-struct Bot {
-    token: String,
-    database: sqlx::SqlitePool,
+pub struct Bot {
+    db: sqlx::SqlitePool,
 }
 
-#[async_trait]
-impl EventHandler for Bot {
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
-            // println!("Received command interaction: {command:#?}");
+type Error = Box<dyn std::error::Error + Send + Sync>;
+type Context<'a> = poise::Context<'a, Bot, Error>;
 
-            let content = match command.data.name.as_str() {
-                "activate" => Some(commands::activate::run()),
-                "help" => Some(commands::help::run()),
-                "spark" => Some(commands::spark::run(&command.data.options())),
-                "vote" => Some(commands::vote::run()),
-                _ => Some("sussy baka, it's not implemented :(".to_string()),
-            };
-
-            if let Some(content) = content {
-                let data = CreateInteractionResponseMessage::new()
-                    .content(content)
-                    .ephemeral(command.data.name == "spark");
-
-                let builder = CreateInteractionResponse::Message(data);
-
-                if let Err(why) = command.create_response(&ctx.http, builder).await {
-                    println!("Cannot respond to slash command: {why}");
-                }
-            }
+async fn on_error(error: poise::FrameworkError<'_, Bot, Error>) {
+    match error {
+        poise::FrameworkError::Setup { error, .. } => panic!("Failed to start bot: {:?}", error),
+        poise::FrameworkError::Command { error, ctx, .. } => {
+            println!("Error in command `{}`: {:?}", ctx.command().name, error,);
         }
-    }
-
-    async fn message(&self, ctx: Context, msg: Message) {
-        println!("Received message: {:#?}", msg);
-
-        match msg.interaction_metadata {
-            Some(interaction) => {
-                match *interaction {
-                    MessageInteractionMetadata::Command(meta) => {
-                        let sv_name = msg.guild_id.unwrap().name(&ctx.cache).unwrap();
-
-                        let desc = format!(
-                            "Someone from {} sparked you {}. Subscribe to [Spark Premium](https://google.com) to reveal!",
-                            sv_name, "compliment"
-                        );
-
-                        let embed = CreateEmbed::new()
-                            .title("Spark #0001")
-                            .description(desc)
-                            .color(0x00FF00);
-
-                        let message = CreateMessage::new().embed(embed);
-                        meta.user.dm(&ctx.http, message).await.unwrap();
-
-                        // msg.channel_id
-                        //     .send_message(&ctx.http, message)
-                        //     .await
-                        //     .unwrap();
-                    }
-                    _ => todo!(),
-                }
+        error => {
+            if let Err(e) = poise::builtins::on_error(error).await {
+                println!("Error while handling error: {}", e)
             }
-            None => { /* no-op */ }
-        }
-    }
-
-    async fn ready(&self, ctx: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-
-        ctx.set_presence(
-            Some(ActivityData::custom("`/spark` to get started")),
-            serenity::all::OnlineStatus::Idle,
-        );
-
-        let glob_cmds = Command::set_global_commands(
-            &ctx.http,
-            vec![
-                commands::activate::register(),
-                commands::help::register(),
-                commands::spark::register(),
-                commands::vote::register(),
-            ],
-        )
-        .await;
-
-        if let Err(why) = glob_cmds {
-            println!("Cannot register global commands: {why}");
         }
     }
 }
@@ -110,10 +31,9 @@ impl EventHandler for Bot {
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().expect("Failed to load .env file");
-
     let token = env::var(BOT_KEY).expect("Expected a token in the environment");
 
-    let database = sqlx::sqlite::SqlitePoolOptions::new()
+    let db = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(
             sqlx::sqlite::SqliteConnectOptions::new()
@@ -123,18 +43,32 @@ async fn main() {
         .await
         .expect("Couldn't connect to database");
 
-    let bot = Bot { token, database };
+    let intents = serenity::GatewayIntents::privileged();
+    let options = poise::FrameworkOptions {
+        commands: vec![ping(), spark(), vote()],
+        on_error: |error| Box::pin(on_error(error)),
+        ..Default::default()
+    };
 
-    let intents = GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::DIRECT_MESSAGES
-        | GatewayIntents::MESSAGE_CONTENT;
+    let framework = poise::Framework::builder()
+        .setup(|ctx, _ready, framework| {
+            Box::pin(async move {
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
 
-    let mut client = Client::builder(&bot.token, intents)
-        .event_handler(bot)
-        .await
-        .expect("Error creating client");
+                ctx.set_presence(
+                    Some(serenity::ActivityData::custom("`/spark` to get started")),
+                    serenity::all::OnlineStatus::DoNotDisturb,
+                );
 
-    if let Err(why) = client.start().await {
-        println!("Client error: {why:?}");
-    }
+                Ok(Bot { db })
+            })
+        })
+        .options(options)
+        .build();
+
+    let client = serenity::ClientBuilder::new(token, intents)
+        .framework(framework)
+        .await;
+
+    client.unwrap().start().await.unwrap();
 }
