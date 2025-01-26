@@ -30,6 +30,7 @@ async fn on_error(error: poise::FrameworkError<'_, Bot, anyhow::Error>) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    color_eyre::install().unwrap_or_default();
     dotenv::dotenv().expect("Couldn't load .env file");
 
     let token = env::var(BOT_KEY).expect("Expected a token in the environment");
@@ -71,7 +72,9 @@ async fn main() -> anyhow::Result<()> {
         .framework(framework)
         .await;
 
-    client.unwrap().start().await.unwrap();
+    if let Err(why) = client.unwrap().start().await {
+        println!("Err with client: {:?}", why);
+    }
 
     Ok(())
 }
