@@ -3,9 +3,8 @@ use poise::{
     serenity_prelude::{self as serenity, CreateEmbedFooter},
     ChoiceParameter,
 };
-use strum::EnumIter;
 
-#[derive(Debug, poise::ChoiceParameter, EnumIter)]
+#[derive(Debug, poise::ChoiceParameter)]
 pub enum Compliments {
     #[name = "Crush 💖"]
     Crush,
