@@ -25,4 +25,9 @@ impl DbManager {
 
         Ok(count)
     }
+
+    pub async fn set_active_channel(&self, channel_id: i64) -> Result<(), anyhow::Error> {
+        // TODO
+        Ok(())
+    }
 }

@@ -1,10 +1,10 @@
 use crate::Context;
 use poise::{
-    serenity_prelude::{self as serenity, CreateEmbedFooter},
+    serenity_prelude::{self as serenity, colours::branding::GREEN, CreateEmbedFooter},
     ChoiceParameter,
 };
 
-#[derive(Debug, Clone, Copy, poise::ChoiceParameter)]
+#[derive(Clone, Copy, Debug, PartialEq, poise::ChoiceParameter)]
 pub enum Compliments {
     #[name = "Crush 💖"]
     Crush,
@@ -128,7 +128,7 @@ Vote to spark again by `/vote`
         ))
         .description(&embed_msg)
         .footer(CreateEmbedFooter::new("Sent by Spark"))
-        .color(0x00FF00)
+        .color(GREEN)
         .thumbnail(user.face());
 
     let result = ctx

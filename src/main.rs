@@ -1,9 +1,10 @@
+#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 mod commands;
 mod constants;
 mod db;
 
 use anyhow::Ok;
-use commands::{ping::ping, spark::spark, vote::vote};
+use commands::{activate::activate, ping::ping, spark::spark, vote::vote};
 use constants::{BOT_KEY, DB_KEY};
 use db::manager::DbManager;
 use poise::serenity_prelude as serenity;
@@ -48,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
 
     let intents = serenity::GatewayIntents::privileged();
     let options = poise::FrameworkOptions {
-        commands: vec![ping(), spark(), vote()],
+        commands: vec![activate(), ping(), spark(), vote()],
         on_error: |error| Box::pin(on_error(error)),
         ..Default::default()
     };
