@@ -59,7 +59,7 @@ impl DbManager {
         &self,
         guild_id: u64,
         user_id: u64,
-    ) -> Result<Vec<i64>, anyhow::Error> {
+    ) -> Result<Vec<i32>, anyhow::Error> {
         let compliments = sqlx::query_scalar(
             "SELECT compliment
              FROM user_compliments

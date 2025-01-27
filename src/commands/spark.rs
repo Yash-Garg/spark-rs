@@ -121,7 +121,7 @@ Vote to spark again by `/vote`
     let compliments = db
         .get_user_compliments(guild_id, user_id)
         .await
-        .unwrap_or_else(|_| vec![]);
+        .map_err(|e| anyhow::anyhow!("Failed to get user compliments: {:?}", e))?;
 
     let embed = serenity::CreateEmbed::new()
         .author(embed_author)
@@ -142,7 +142,10 @@ Vote to spark again by `/vote`
             .guild()
             .unwrap()
     } else {
-        db.set_active_channel(guild_id, ctx.channel_id().get());
+        db.set_active_channel(guild_id, ctx.channel_id().get())
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to set active channel: {:?}", e))?;
+
         ctx.guild_channel().await.unwrap()
     };
 
