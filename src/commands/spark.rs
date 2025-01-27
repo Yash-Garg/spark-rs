@@ -1,6 +1,6 @@
 use crate::Context;
 use poise::{
-    serenity_prelude::{self as serenity, colours::branding::GREEN, CreateEmbedFooter},
+    serenity_prelude::{self as serenity, colours::branding::GREEN, ChannelId, CreateEmbedFooter},
     ChoiceParameter,
 };
 
@@ -70,7 +70,7 @@ impl Compliments {
         "Do you see a spark in someone? Go ahead, give them a compliment!"
     ),
     // 1 day cooldown
-    member_cooldown = 86400,
+    // member_cooldown = 86400,
     ephemeral,
     guild_only,
     prefix_command,
@@ -86,10 +86,13 @@ pub async fn spark(
         return Err(anyhow::anyhow!("User tried to spark themselves"));
     }
 
-    let uid = user.id.get() as i32;
-    let db = &ctx.data().db;
+    let guild_id: u64 = ctx.guild_id().unwrap().get();
+    let user_id: u64 = user.id.get();
 
-    // TODO: Add spark to db
+    let db = &ctx.data().db;
+    db.add_compliment(guild_id, user_id, compliment as i64)
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to save compliment to db: {:?}", e))?;
 
     let message = format!(
         "You've sparked {}!
@@ -107,7 +110,7 @@ Vote to spark again by `/vote`
     // TODO: Figure out guild name
     let embed_msg = format!(
         "<@{}> Someone from {} sparked you {}. Subscribe to [Spark Premium](https://google.com) to reveal!",
-        user.id.get(),
+       &user_id,
         "GUILD_NAME",
         compliment.name()
     );
@@ -115,11 +118,16 @@ Vote to spark again by `/vote`
     let embed_author =
         serenity::CreateEmbedAuthor::new(compliment.name()).icon_url(ctx.author().face());
 
+    let compliments = db
+        .get_user_compliments(guild_id, user_id)
+        .await
+        .unwrap_or_else(|_| vec![]);
+
     let embed = serenity::CreateEmbed::new()
         .author(embed_author)
         .title(format!(
             "🚨 Spark #000{} Someone sparked {} 🚨",
-            1,
+            &compliments.len(),
             user.display_name()
         ))
         .description(&embed_msg)
@@ -127,10 +135,18 @@ Vote to spark again by `/vote`
         .color(GREEN)
         .thumbnail(user.face());
 
-    let result = ctx
-        .guild_channel()
-        .await
-        .unwrap()
+    let channel = if let Some(id) = db.get_active_channel(guild_id).await? {
+        ChannelId::new(id as u64)
+            .to_channel(ctx)
+            .await?
+            .guild()
+            .unwrap()
+    } else {
+        db.set_active_channel(guild_id, ctx.channel_id().get());
+        ctx.guild_channel().await.unwrap()
+    };
+
+    let result = &channel
         .send_message(&ctx.http(), serenity::CreateMessage::new().embed(embed))
         .await;
 

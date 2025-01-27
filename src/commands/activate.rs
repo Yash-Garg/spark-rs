@@ -21,6 +21,10 @@ pub async fn activate(
     }
 
     let db = &ctx.data().db;
+
+    let guild_id: u64 = ctx.guild_id().unwrap().get();
+    let channel_id: u64 = channel.as_ref().unwrap().id.get();
+
     let reply = serenity::CreateMessage::new()
         .content("All the sparks will be shown in this channel now. Spark anywhere, read here.");
 
@@ -29,17 +33,14 @@ pub async fn activate(
         Ok(_) => {
             ctx.say(format!(
                 "Activated {} for all spark messages.",
-                channel.as_ref().unwrap().name
+                &channel.unwrap().name
             ))
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send confirmation message: {:?}", e))?;
 
-            db.set_active_channel(
-                ctx.guild_id().unwrap().get() as i64,
-                channel.unwrap().id.get() as i64,
-            )
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to set active channel: {:?}", e))?;
+            db.set_active_channel(guild_id, channel_id)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to set active channel: {:?}", e))?;
         }
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to send message: {:?}", e));
