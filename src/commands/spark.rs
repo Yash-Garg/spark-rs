@@ -89,10 +89,6 @@ pub async fn spark(
     let uid = user.id.get() as i32;
     let db = &ctx.data().db;
 
-    db.add_spark(uid, compliment as i32).await?;
-
-    let sparks_count: i64 = db.get_sparks_count(uid).await?;
-
     // TODO: Add spark to db
 
     let message = format!(
@@ -102,7 +98,7 @@ Your daily spark is done, you can spark again tomorrow
 Vote to spark again by `/vote`
 ",
         user.display_name(),
-        sparks_count,
+        0,
     );
 
     let reply = poise::CreateReply::default().content(message);
@@ -123,7 +119,7 @@ Vote to spark again by `/vote`
         .author(embed_author)
         .title(format!(
             "🚨 Spark #000{} Someone sparked {} 🚨",
-            sparks_count,
+            1,
             user.display_name()
         ))
         .description(&embed_msg)

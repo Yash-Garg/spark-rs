@@ -34,9 +34,12 @@ pub async fn activate(
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send confirmation message: {:?}", e))?;
 
-            db.set_active_channel(channel.unwrap().id.get() as i64)
-                .await
-                .map_err(|e| anyhow::anyhow!("Failed to set active channel: {:?}", e))?;
+            db.set_active_channel(
+                ctx.guild_id().unwrap().get() as i64,
+                channel.unwrap().id.get() as i64,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to set active channel: {:?}", e))?;
         }
         Err(e) => {
             return Err(anyhow::anyhow!("Failed to send message: {:?}", e));
