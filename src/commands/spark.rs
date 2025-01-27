@@ -70,7 +70,7 @@ impl Compliments {
         "Do you see a spark in someone? Go ahead, give them a compliment!"
     ),
     // 1 day cooldown
-    // member_cooldown = 86400,
+    member_cooldown = 86400,
     ephemeral,
     guild_only,
     prefix_command,
@@ -89,16 +89,9 @@ pub async fn spark(
     let uid = user.id.get() as i32;
     let db = &ctx.data().db;
 
-    sqlx::query("INSERT INTO sparks (user_id, compliment) VALUES ($1, $2)")
-        .bind(uid)
-        .bind(compliment as i32)
-        .execute(db)
-        .await?;
+    db.add_spark(uid, compliment as i32).await?;
 
-    let sparks_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM sparks WHERE user_id = $1")
-        .bind(uid)
-        .fetch_one(db)
-        .await?;
+    let sparks_count: i64 = db.get_sparks_count(uid).await?;
 
     // TODO: Add spark to db
 

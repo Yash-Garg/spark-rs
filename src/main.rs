@@ -1,15 +1,16 @@
-use std::env;
-
 mod commands;
 mod constants;
+mod db;
 
 use anyhow::Ok;
 use commands::{ping::ping, spark::spark, vote::vote};
 use constants::{BOT_KEY, DB_KEY};
+use db::manager::DbManager;
 use poise::serenity_prelude as serenity;
+use std::env;
 
 pub struct Bot {
-    db: sqlx::PgPool,
+    db: DbManager,
 }
 
 type Context<'a> = poise::Context<'a, Bot, anyhow::Error>;
@@ -36,12 +37,12 @@ async fn main() -> anyhow::Result<()> {
     let token = env::var(BOT_KEY).expect("Expected a token in the environment");
     let db_url = env::var(DB_KEY).expect("Expected a database URL in the environment");
 
-    let db = sqlx::PgPool::connect(&db_url)
+    let pool = sqlx::PgPool::connect(&db_url)
         .await
         .expect("Couldn't connect to database");
 
     sqlx::migrate!("./migrations")
-        .run(&db)
+        .run(&pool)
         .await
         .expect("Couldn't run database migrations");
 
@@ -62,7 +63,9 @@ async fn main() -> anyhow::Result<()> {
                     serenity::all::OnlineStatus::DoNotDisturb,
                 );
 
-                Ok(Bot { db })
+                Ok(Bot {
+                    db: DbManager::new(pool),
+                })
             })
         })
         .options(options)
